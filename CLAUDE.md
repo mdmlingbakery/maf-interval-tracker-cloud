@@ -17,6 +17,11 @@ Repo: `mdmlingbakery/maf-interval-tracker-cloud` — **PUBLIC on purpose.**
 > `run-rungs.sh` run `SEASON=CNY27 BRAND=MLB` FIRST — the CNY27 sheet's `moving average` tab (gid 198369866), round
 > ends live from its `27 discount` tab (Jan/Feb roll to 2027), first armed day Mon 23 Nov. The laptop task is NOT part
 > of CNY27 — this repo is the ONLY runner.
+> **CNY27 LLV was added the same day (commit 2026-11-06 "CNY27 LLV: tracker setting + run after CNY27 MLB") and arms
+> EARLIER: Sun 15 – Tue 17 Nov for LLV R1 (closes Tue 17 Nov).** The "first armed day Mon 23 Nov" above is MLB's only.
+> **⚠ `who-filled.js` and `check-ready.js` (laptop folder) are MAF26-only** — on 17 Nov they called LLV "not armed"
+> and the tracker "NOT READY", both false for CNY27. Until tracker row "Interval tracker checkers are MAF26-only" is
+> done, prove a CNY27 rung from THIS repo's run logs: `already filled TODAY (I<row>=…)` or `Telegram sent`.
 
 > **(history) Wed 30 Sep 2026: both workflows RE-ENABLED for MLB Deepavali 2026.** Both
 > `interval-tracker.yml` and `.github/run-rungs.sh` (used by `slot-relay.yml`) now run
