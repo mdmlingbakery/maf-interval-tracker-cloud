@@ -46,6 +46,23 @@
  */
 
 const fs = require('fs');
+
+// Tue 17 Nov 2026: GitHub cron lag (8–12h) lands yesterday's evening crons after SGT midnight. Their target
+// then resolves to TODAY's slot, >WAIT_CAP_MIN away, and the cap aborted with exit 1 — 10 red emails a night
+// for a run that correctly wrote and sent nothing (tracker row "the benign WAIT_CAP abort emails red").
+// GitHub never fires a cron EARLY, so a scheduled run whose cron time-of-day (SGT) is later than now must be
+// yesterday's. Only that case becomes a clean skip. Manual dispatches, the laptop (no GITHUB_EVENT_NAME) and a
+// today-cron that somehow exceeds the cap all still throw — those are real mistakes worth a red run.
+function yesterdaysCronLandedToday(curMinSGT) {
+  if (process.env.GITHUB_EVENT_NAME !== 'schedule' || !process.env.GITHUB_EVENT_PATH) return null;
+  let cron;
+  try { cron = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).schedule; } catch (e) { return null; }
+  const m = /^\s*(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*\s*$/.exec(String(cron || ''));
+  if (!m) return null; // only plain daily "M H * * *" crons are understood; anything else keeps the loud abort
+  const cronSGT = (Number(m[2]) * 60 + Number(m[1]) + SGT_OFFSET_H * 60) % 1440; // same offset nowSGT() uses
+  if (curMinSGT >= cronSGT) return null;
+  return { cron, sgt: `${String(Math.floor(cronSGT / 60)).padStart(2, '0')}${String(cronSGT % 60).padStart(2, '0')}` };
+}
 const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
@@ -669,6 +686,10 @@ const main = async () => {
       const c = nowSGT(); const curMin = c.getUTCHours() * 60 + c.getUTCMinutes();
       let waitMin = wakeMin - curMin;
       if (waitMin <= 0) { console.log(`  target ${target}: it is ${String(Math.floor(curMin / 60)).padStart(2, '0')}${String(curMin % 60).padStart(2, '0')} SGT — at/past target, proceeding.`); break; }
+      if (waitMin > capMin) {
+        const y = yesterdaysCronLandedToday(curMin);
+        if (y) { console.log(`  SKIP (lag, not a fault): this scheduled run's cron "${y.cron}" is ${y.sgt} SGT, later in the day than now (${String(Math.floor(curMin / 60)).padStart(2, '0')}${String(curMin % 60).padStart(2, '0')} SGT) — GitHub never fires early, so this is YESTERDAY's cron landing after midnight. Yesterday's ${target} rung is past (on lagged nights the slot relay is the runner that fills it); today's ${target} is ${waitMin} min away and belongs to today's own cron. Nothing written, nothing sent.`); return; }
+      }
       if (waitMin > capMin) throw new Error(`target ${target} is ${waitMin} min away (> ${capMin} cap) — cron fired far too early; aborting rather than idling.`);
       const chunk = Math.min(waitMin, 10);
       console.log(`  target ${target}: ${waitMin} min to go (now ${String(Math.floor(curMin / 60)).padStart(2, '0')}${String(curMin % 60).padStart(2, '0')} SGT) — sleeping ${chunk} min...`);

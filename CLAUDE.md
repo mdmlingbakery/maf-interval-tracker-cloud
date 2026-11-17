@@ -53,6 +53,16 @@ slot). Idle stays under `WAIT_CAP_MIN` (210 min) with room for the 30–90 min c
 **A `workflow_dispatch` cannot test these arms** — it sends an empty `github.event.schedule`,
 so only a real scheduled fire exercises them; verify the mapping statically instead.
 
+> **⚠ SINCE TUE 17 NOV 2026 A LAGGED-PAST-MIDNIGHT CRON IS A GREEN SKIP, NOT A RED ABORT.** `tracker.js`'s
+> `yesterdaysCronLandedToday()` reads the run's cron from `GITHUB_EVENT_PATH`: on a `schedule` run whose cron
+> time-of-day (SGT) is LATER than now, the run must be yesterday's (GitHub never fires early), so the
+> `WAIT_CAP_MIN` breach logs `SKIP (lag, not a fault)` and exits 0. Night of 16→17 Nov this produced 10 red emails
+> for LLV's CNY27 R1 close while every rung had filled. **Still red (on purpose):** manual dispatches, the laptop,
+> non-daily crons, an unreadable event file, and a TODAY cron that somehow exceeds the cap (a real config bug).
+> Do not widen the skip to "any schedule run over the cap" — a relay run from yesterday sleeping into today must
+> not silently swallow today's rung, and only the cron-later-than-now test separates the two. Unit test (extracts
+> the function, never requires the engine, 11 cases): `node test-lag-skip.js tracker.js`.
+
 ## Test-dispatching this workflow (read before picking a `target`)
 - **Leave `target` BLANK for a smoke test.** Blank means "nearest slot to now", which skips
   the idle loop entirely and finishes in ~30s — the fast way to prove a code change runs in
